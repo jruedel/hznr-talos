@@ -63,17 +63,14 @@ terraform -chdir=terraform apply \
   -var='operator_cidrs=["YOUR.PUBLIC.IP/32"]'
 ```
 
-Or set `operator_cidrs` in a `terraform.tfvars` file. Flannel VXLAN (4789) is automatically restricted to cluster node IPs only.
+Or set `operator_cidrs` in a `terraform.tfvars` file.
 
 | Port | Protocol | Source | Purpose |
 |------|----------|--------|---------|
 | 50000 | TCP | `operator_cidrs` | Talos API (talosctl) |
 | 6443 | TCP | `operator_cidrs` | Kubernetes API |
-| 2379-2380 | TCP | Private subnet | etcd |
-| 10250 | TCP | Private subnet | Kubelet |
-| 4789 | UDP | All (`0.0.0.0/0`) | Flannel VXLAN overlay* |
 
-\* Hetzner Cloud Firewalls don't reliably support restricting VXLAN to node IPs.
+Internal traffic (etcd 2379-2380, kubelet 10250, Flannel VXLAN 4789) uses the private network. [Hetzner Cloud Firewalls don't apply to private network traffic](https://docs.hetzner.com/cloud/firewalls/faq/#can-firewalls-secure-traffic-to-my-private-hetzner-cloud-networks), so no firewall rules are needed for these. Flannel is configured with `--iface-regex=10\.0\..*\..*` to ensure VXLAN uses private interfaces.
 
 ### 5. Bootstrap Cluster
 

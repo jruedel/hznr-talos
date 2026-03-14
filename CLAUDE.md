@@ -64,15 +64,14 @@ terraform -chdir=terraform validate
 - Hetzner provider auth: `HCLOUD_TOKEN` env var (auto-read by provider, no secret in code)
 - Talos ignores SSH; dummy key is created via `tls_private_key` to satisfy Hetzner's requirement
 - Generated Talos configs go to `talos/` (gitignored), kubeconfig to `./kubeconfig` (gitignored)
-- Talos machine config patches live in `patches/` (cloud-provider, node-private-ip)
+- Talos machine config patches live in `patches/` (cloud-provider, node-private-ip, flannel-private-iface)
 - `gen-config` applies all patches automatically via `--config-patch`
 - Kubectl context for this cluster: `admin@talos`
 
 ## Firewall
 
 - Talos API (50000) and K8s API (6443): restricted to `var.operator_cidrs` (default: open)
-- etcd (2379-2380) and kubelet (10250): private subnet only
-- Flannel VXLAN (4789): open to all — Hetzner Cloud Firewalls don't reliably support self-referencing node IP rules
+- etcd (2379-2380), kubelet (10250), Flannel VXLAN (4789): no rules needed — private network traffic, firewalls don't apply
 - Set `operator_cidrs` to your IP/CIDR to lock down management access
 
 ## Cluster Services (Helm via Makefile)
@@ -84,7 +83,8 @@ terraform -chdir=terraform validate
 
 ## Hetzner + Talos Gotchas
 
-- Flannel uses VXLAN on port **4789** (not 8472) over **public IPs** regardless of kubelet nodeIP
+- Flannel uses VXLAN on port **4789** (not 8472); defaults to public IPs unless `--iface-regex` is set
+- `patches/flannel-private-iface.yaml` forces Flannel to use private network IPs via `--iface-regex`
 - Kubelet needs `--cloud-provider=external` for CCM to set `providerID` on nodes
 - `kubelet.nodeIP.validSubnets` must be set to private subnet for CCM LB target attachment
 - Hetzner Cloud Firewalls can silently drop overlay traffic if the wrong port/source is allowed

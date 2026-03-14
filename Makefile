@@ -59,7 +59,8 @@ gen-config: ## Generate Talos machine configs via talosctl
 		--with-docs=false \
 		--with-examples=false \
 		--config-patch @patches/cloud-provider.yaml \
-		--config-patch @patches/node-private-ip.yaml
+		--config-patch @patches/node-private-ip.yaml \
+		--config-patch @patches/flannel-private-iface.yaml
 
 apply-config: ## Apply Talos machine configs to all nodes
 	@for ip in $(CP_PUBLIC_IPS); do \
@@ -86,10 +87,16 @@ patch-config: ## Patch running nodes with files from patches/ dir
 	done
 
 bootstrap: ## Bootstrap the first control plane node
-	talosctl bootstrap \
-		--nodes $(firstword $(CP_PUBLIC_IPS)) \
-		--endpoints $(firstword $(CP_PUBLIC_IPS)) \
-		--talosconfig $(TALOS_DIR)/talosconfig
+	@echo "Waiting for control plane to be ready for bootstrap ..."
+	@for i in $$(seq 1 60); do \
+		talosctl bootstrap \
+			--nodes $(firstword $(CP_PUBLIC_IPS)) \
+			--endpoints $(firstword $(CP_PUBLIC_IPS)) \
+			--talosconfig $(TALOS_DIR)/talosconfig 2>/dev/null && exit 0; \
+		echo "  attempt $$i/60 — not ready yet"; \
+		sleep 5; \
+	done; \
+	echo "Error: bootstrap did not become available within 5 minutes"; exit 1
 
 get-kubeconfig: ## Retrieve kubeconfig from the cluster
 	talosctl kubeconfig ./kubeconfig \

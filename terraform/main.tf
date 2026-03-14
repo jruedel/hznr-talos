@@ -47,31 +47,9 @@ resource "hcloud_firewall" "talos" {
     source_ips = var.operator_cidrs
   }
 
-  # etcd — internal only
-  rule {
-    direction  = "in"
-    protocol   = "tcp"
-    port       = "2379-2380"
-    source_ips = [var.subnet_cidr]
-  }
-
-  # Kubelet — internal only
-  rule {
-    direction  = "in"
-    protocol   = "tcp"
-    port       = "10250"
-    source_ips = [var.subnet_cidr]
-  }
-
-  # Flannel VXLAN (port 4789) — pod-to-pod traffic across nodes
-  # Must be open to all: Hetzner Cloud Firewalls don't reliably work
-  # with self-referencing node IP rules due to timing/ordering issues
-  rule {
-    direction  = "in"
-    protocol   = "udp"
-    port       = "4789"
-    source_ips = ["0.0.0.0/0", "::/0"]
-  }
+  # etcd (2379-2380), kubelet (10250), Flannel VXLAN (4789):
+  # No rules needed — all traffic goes over the private network,
+  # and Hetzner Cloud Firewalls don't apply to private network traffic
 }
 
 # --- Placement Groups ---
