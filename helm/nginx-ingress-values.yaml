@@ -1,0 +1,20 @@
+controller:
+  service:
+    type: LoadBalancer
+    annotations:
+      load-balancer.hetzner.cloud/location: "nbg1"
+      load-balancer.hetzner.cloud/use-private-ip: "true"
+      load-balancer.hetzner.cloud/uses-proxyprotocol: "true"
+      load-balancer.hetzner.cloud/name: "ingress-lb"
+
+  replicaCount: 2
+
+  config:
+    use-proxy-protocol: "true"
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      memory: 256Mi

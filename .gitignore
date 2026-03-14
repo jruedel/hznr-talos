@@ -1,0 +1,8 @@
+.env
+*.tfstate
+*.tfstate.backup
+.terraform/
+.terraform.lock.hcl
+talos/
+kubeconfig
+manifest.json

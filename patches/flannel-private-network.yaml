@@ -1,0 +1,8 @@
+machine:
+  network:
+    kubespan:
+      enabled: false
+  kubelet:
+    nodeIP:
+      validSubnets:
+        - 10.0.1.0/24

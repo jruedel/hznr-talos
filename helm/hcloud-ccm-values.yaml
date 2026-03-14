@@ -1,0 +1,13 @@
+networking:
+  enabled: true
+  clusterCIDR: "10.244.0.0/16"
+
+nodeSelector:
+  node-role.kubernetes.io/control-plane: ""
+
+tolerations:
+  - key: "node-role.kubernetes.io/control-plane"
+    effect: "NoSchedule"
+  - key: "node.cloudprovider.kubernetes.io/uninitialized"
+    value: "true"
+    effect: "NoSchedule"
