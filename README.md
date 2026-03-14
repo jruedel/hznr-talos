@@ -71,7 +71,9 @@ Or set `operator_cidrs` in a `terraform.tfvars` file. Flannel VXLAN (4789) is au
 | 6443 | TCP | `operator_cidrs` | Kubernetes API |
 | 2379-2380 | TCP | Private subnet | etcd |
 | 10250 | TCP | Private subnet | Kubelet |
-| 4789 | UDP | Node public IPs | Flannel VXLAN overlay |
+| 4789 | UDP | All (`0.0.0.0/0`) | Flannel VXLAN overlay* |
+
+\* Hetzner Cloud Firewalls don't reliably support restricting VXLAN to node IPs.
 
 ### 5. Bootstrap Cluster
 

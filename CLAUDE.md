@@ -70,11 +70,9 @@ terraform -chdir=terraform validate
 
 ## Firewall
 
-Two firewalls: main (`talos-firewall`) applied at server creation, and `flannel-vxlan` applied after (to avoid circular dependency with node IPs).
-
 - Talos API (50000) and K8s API (6443): restricted to `var.operator_cidrs` (default: open)
 - etcd (2379-2380) and kubelet (10250): private subnet only
-- Flannel VXLAN (4789): cluster node public IPs only (separate firewall resource)
+- Flannel VXLAN (4789): open to all — Hetzner Cloud Firewalls don't reliably support self-referencing node IP rules
 - Set `operator_cidrs` to your IP/CIDR to lock down management access
 
 ## Cluster Services (Helm via Makefile)
