@@ -36,7 +36,7 @@ resource "hcloud_firewall" "talos" {
     direction  = "in"
     protocol   = "tcp"
     port       = "50000"
-    source_ips = ["0.0.0.0/0", "::/0"]
+    source_ips = var.operator_cidrs
   }
 
   # Kubernetes API
@@ -44,7 +44,7 @@ resource "hcloud_firewall" "talos" {
     direction  = "in"
     protocol   = "tcp"
     port       = "6443"
-    source_ips = ["0.0.0.0/0", "::/0"]
+    source_ips = var.operator_cidrs
   }
 
   # etcd — internal only
@@ -63,14 +63,38 @@ resource "hcloud_firewall" "talos" {
     source_ips = [var.subnet_cidr]
   }
 
-  # Flannel VXLAN — required for pod-to-pod traffic across nodes
-  # Uses public IPs by default on Hetzner, not private network
+  # Flannel VXLAN (port 4789) — pod-to-pod traffic across nodes
+  # Note: source_ips cannot reference node IPs (circular dependency)
+  # Restricted to private subnet; Flannel also needs public IP access
+  # which is handled by a separate firewall resource below
   rule {
     direction  = "in"
     protocol   = "udp"
-    port       = "8472"
-    source_ips = ["0.0.0.0/0", "::/0"]
+    port       = "4789"
+    source_ips = [var.subnet_cidr]
   }
+}
+
+# Separate firewall for Flannel VXLAN over public IPs
+# Created after servers so we can reference their IPs without circular deps
+resource "hcloud_firewall" "flannel_vxlan" {
+  name   = "${var.cluster_name}-flannel-vxlan"
+  labels = local.common_labels
+
+  rule {
+    direction  = "in"
+    protocol   = "udp"
+    port       = "4789"
+    source_ips = local.node_public_cidrs
+  }
+}
+
+resource "hcloud_firewall_attachment" "flannel_vxlan" {
+  firewall_id = hcloud_firewall.flannel_vxlan.id
+  server_ids = concat(
+    hcloud_server.controlplane[*].id,
+    hcloud_server.worker[*].id
+  )
 }
 
 # --- Placement Groups ---

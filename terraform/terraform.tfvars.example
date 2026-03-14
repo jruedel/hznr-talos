@@ -5,10 +5,14 @@ worker_count           = 1
 server_type_controlplane = "cx22"
 server_type_worker       = "cx22"
 location               = "nbg1"
-talos_version          = "v1.11"
+talos_version          = "v1.12.5"
 
 # Packer snapshot ID (from `make build-image` output)
 image_id = "123456789"
+
+# Firewall: restrict management access to your IP (recommended)
+# Default is open to all — set this to your public IP for security
+# operator_cidrs = ["YOUR.PUBLIC.IP/32"]
 
 # Network (defaults are usually fine)
 # network_cidr = "10.0.0.0/16"

@@ -26,7 +26,9 @@ make gen-config      # Generate Talos machine configs via talosctl
 make apply-config    # Apply configs to all nodes
 make bootstrap       # Bootstrap first control plane node
 make get-kubeconfig  # Retrieve kubeconfig
-make cluster         # Full end-to-end: apply → gen-config → apply-config → bootstrap → get-kubeconfig
+make deploy-services # Deploy CCM + nginx ingress + cert-manager
+make patch-config    # Apply patches/ to running nodes via talosctl
+make cluster         # Full end-to-end: apply → bootstrap → deploy-services
 make destroy         # Terraform destroy
 ```
 
@@ -34,13 +36,13 @@ make destroy         # Terraform destroy
 
 ### Packer (image build)
 - `packer/hcloud.pkr.hcl` — Hetzner Cloud provider config, downloads Talos from factory.talos.dev
-- `packer/instances.pkr.hcl` — Variables: architecture (amd64/arm), server type, location, Talos version
+- `packer/instances.pkrvars.hcl` — Variables: architecture (amd64/arm), server type, location, Talos version
 
 ### Terraform (infrastructure)
 - `terraform/main.tf` — All resources: dummy SSH key, private network + subnet, firewall, placement groups, CP/worker servers, load balancer
 - `terraform/variables.tf` — Cluster topology is configurable: `control_plane_count` (1 or 3), `worker_count` (1-10), server types, location
 - `terraform/outputs.tf` — Node IPs and LB endpoint, consumed by Makefile for talosctl commands
-- Load balancer is always created (even for single CP) so the API endpoint stays stable when scaling
+- Load balancer is only created for HA (3+ CP nodes); single CP uses the node's public IP directly
 
 ### Data Flow
 1. Packer builds image → snapshot ID saved in `manifest.json`
@@ -62,4 +64,30 @@ terraform -chdir=terraform validate
 - Hetzner provider auth: `HCLOUD_TOKEN` env var (auto-read by provider, no secret in code)
 - Talos ignores SSH; dummy key is created via `tls_private_key` to satisfy Hetzner's requirement
 - Generated Talos configs go to `talos/` (gitignored), kubeconfig to `./kubeconfig` (gitignored)
-- Firewall restricts etcd/kubelet to private subnet; Talos API and K8s API open externally
+- Talos machine config patches live in `patches/` (cloud-provider, node-private-ip)
+- `gen-config` applies all patches automatically via `--config-patch`
+- Kubectl context for this cluster: `admin@talos`
+
+## Firewall
+
+Two firewalls: main (`talos-firewall`) applied at server creation, and `flannel-vxlan` applied after (to avoid circular dependency with node IPs).
+
+- Talos API (50000) and K8s API (6443): restricted to `var.operator_cidrs` (default: open)
+- etcd (2379-2380) and kubelet (10250): private subnet only
+- Flannel VXLAN (4789): cluster node public IPs only (separate firewall resource)
+- Set `operator_cidrs` to your IP/CIDR to lock down management access
+
+## Cluster Services (Helm via Makefile)
+
+- **hcloud-ccm** — Hetzner Cloud Controller Manager, enables `Service type: LoadBalancer`
+- **nginx ingress** — ingress controller with Hetzner LB annotations and proxy protocol
+- **cert-manager** — Let's Encrypt TLS via ClusterIssuers (`letsencrypt-staging`, `letsencrypt-prod`)
+- Values files in `helm/`, K8s manifests in `k8s/`
+
+## Hetzner + Talos Gotchas
+
+- Flannel uses VXLAN on port **4789** (not 8472) over **public IPs** regardless of kubelet nodeIP
+- Kubelet needs `--cloud-provider=external` for CCM to set `providerID` on nodes
+- `kubelet.nodeIP.validSubnets` must be set to private subnet for CCM LB target attachment
+- Hetzner Cloud Firewalls can silently drop overlay traffic if the wrong port/source is allowed
+- Talos enforces `restricted` Pod Security Standard — all pods need full security context

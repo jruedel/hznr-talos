@@ -65,6 +65,12 @@ variable "talos_version" {
   default     = "v1.12.5"
 }
 
+variable "operator_cidrs" {
+  description = "CIDRs allowed to access Talos API and K8s API (e.g. your office/home IP)"
+  type        = list(string)
+  default     = ["0.0.0.0/0", "::/0"]
+}
+
 variable "network_cidr" {
   description = "CIDR for the Hetzner private network"
   type        = string

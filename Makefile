@@ -59,7 +59,7 @@ gen-config: ## Generate Talos machine configs via talosctl
 		--with-docs=false \
 		--with-examples=false \
 		--config-patch @patches/cloud-provider.yaml \
-		--config-patch @patches/flannel-private-network.yaml
+		--config-patch @patches/node-private-ip.yaml
 
 apply-config: ## Apply Talos machine configs to all nodes
 	@for ip in $(CP_PUBLIC_IPS); do \

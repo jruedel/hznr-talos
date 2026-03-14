@@ -54,6 +54,25 @@ terraform -chdir=terraform apply \
   -var="worker_count=3"
 ```
 
+#### Firewall
+
+By default, the Talos API (50000) and Kubernetes API (6443) are open to all IPs. To restrict management access to your IP:
+
+```bash
+terraform -chdir=terraform apply \
+  -var='operator_cidrs=["YOUR.PUBLIC.IP/32"]'
+```
+
+Or set `operator_cidrs` in a `terraform.tfvars` file. Flannel VXLAN (4789) is automatically restricted to cluster node IPs only.
+
+| Port | Protocol | Source | Purpose |
+|------|----------|--------|---------|
+| 50000 | TCP | `operator_cidrs` | Talos API (talosctl) |
+| 6443 | TCP | `operator_cidrs` | Kubernetes API |
+| 2379-2380 | TCP | Private subnet | etcd |
+| 10250 | TCP | Private subnet | Kubelet |
+| 4789 | UDP | Node public IPs | Flannel VXLAN overlay |
+
 ### 5. Bootstrap Cluster
 
 ```bash
