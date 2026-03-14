@@ -22,10 +22,11 @@ Setup for K8s development cluster on Hetzner Cloud with Talos Linux.
 cp .env.example .env  # or create manually
 ```
 
-Add your token and email to `.env`:
+Add your token, email, and domain to `.env`:
 ```
 HCLOUD_TOKEN=your_token_here
 ACME_EMAIL=your@email.com
+DOMAIN=example.com
 ```
 
 ### 3. Build Talos Image
@@ -110,45 +111,25 @@ kubectl --kubeconfig=./kubeconfig --context=admin@talos \
   -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
 ```
 
-Create a DNS A record:
+Create a wildcard DNS A record so all subdomains resolve to the ingress:
 ```
-your.domain.com  →  <ingress-lb-ip>
+*.example.com  →  <ingress-lb-ip>
 ```
 
 Wait for DNS propagation before requesting TLS certificates. You can verify with:
 ```bash
-dig +short your.domain.com
+dig +short hello.example.com
 ```
 
-### 8. Use TLS with Ingress
+### 8. Deploy Hello World (Test)
 
-cert-manager provides two ClusterIssuers. Use `letsencrypt-staging` first to test (higher rate limits), then switch to `letsencrypt-prod`:
+Deploy the included hello-world app to verify TLS and ingress are working:
 
-```yaml
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: my-app
-  annotations:
-    cert-manager.io/cluster-issuer: letsencrypt-prod
-spec:
-  ingressClassName: nginx
-  tls:
-    - hosts:
-        - your.domain.com
-      secretName: my-app-tls
-  rules:
-    - host: your.domain.com
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: my-app
-                port:
-                  number: 80
+```bash
+make deploy-hello-world
 ```
+
+This creates a Deployment, Service, and Ingress at `hello.<DOMAIN>` with a Let's Encrypt TLS certificate. cert-manager provides two ClusterIssuers — use `letsencrypt-staging` first to test (higher rate limits), then switch to `letsencrypt-prod` in `k8s/hello-world.yaml`.
 
 ### 9. Use the Cluster
 

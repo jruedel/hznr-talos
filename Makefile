@@ -12,6 +12,7 @@ CLUSTER_NAME ?= talos
 KUBECONFIG   ?= ./kubeconfig
 KUBE_CTX     ?= admin@talos
 ACME_EMAIL   ?=
+DOMAIN       ?=
 
 IMAGE_ID ?= $(shell [ -f manifest.json ] && jq -r '.builds[-1].artifact_id' manifest.json)
 export TF_VAR_image_id = $(IMAGE_ID)
@@ -22,7 +23,7 @@ CLUSTER_ENDPOINT = $(shell terraform -chdir=$(TERRAFORM_DIR) output -raw cluster
 CP_PUBLIC_IPS    = $(shell terraform -chdir=$(TERRAFORM_DIR) output -json controlplane_public_ips 2>/dev/null | jq -r '.[]')
 WK_PUBLIC_IPS    = $(shell terraform -chdir=$(TERRAFORM_DIR) output -json worker_public_ips 2>/dev/null | jq -r '.[]')
 
-.PHONY: help build-image init plan apply gen-config apply-config patch-config bootstrap get-kubeconfig destroy cluster deploy-hcloud-secret deploy-ccm deploy-ingress deploy-cert-manager deploy-services
+.PHONY: help build-image init plan apply gen-config apply-config patch-config bootstrap get-kubeconfig destroy cluster deploy-hcloud-secret deploy-ccm deploy-ingress deploy-cert-manager deploy-services deploy-hello-world
 
 help:
 	@awk 'BEGIN {FS = ":.*##";} /^[a-zA-Z0-9_-]+:.*?##/ { printf "  \033[36m%-32s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
@@ -154,6 +155,15 @@ deploy-cert-manager: ## Deploy cert-manager with Let's Encrypt issuers
 	@echo "ClusterIssuers 'letsencrypt-staging' and 'letsencrypt-prod' created"
 
 deploy-services: deploy-hcloud-secret deploy-ccm deploy-ingress deploy-cert-manager ## Deploy all cluster services (CCM + Ingress + TLS)
+
+deploy-hello-world: ## Deploy hello-world test app with TLS ingress
+	@if [ -z "$(DOMAIN)" ]; then \
+		echo "Error: DOMAIN is required. Set it in .env or pass via 'make deploy-hello-world DOMAIN=example.com'"; \
+		exit 1; \
+	fi
+	@sed 's/DOMAIN_PLACEHOLDER/$(DOMAIN)/g' k8s/hello-world.yaml | \
+		kubectl --kubeconfig=$(KUBECONFIG) --context=$(KUBE_CTX) apply -f -
+	@echo "hello-world deployed at https://hello.$(DOMAIN)"
 
 ##@ Full Workflow
 cluster: apply gen-config apply-config bootstrap get-kubeconfig deploy-services ## Provision infra, bootstrap, and deploy services end-to-end
